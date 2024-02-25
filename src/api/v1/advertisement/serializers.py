@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from rest_framework.fields import CurrentUserDefault
+from rest_framework.fields import CurrentUserDefault, MultipleChoiceField
 
 from api.v1.user.serializers import UserDetailSerializer
 from apps.advertisement.models import Advertisement, AdvertisementCategory, Image
@@ -42,7 +42,9 @@ class CreateAdvertisementSerializer(serializers.ModelSerializer):
             use_url=False,
         ),
         write_only=True,
+        required=False,
     )
+    advertisement_type = MultipleChoiceField(choices=Advertisement.TYPE_LIST)
 
     class Meta:
         model = Advertisement
@@ -63,13 +65,16 @@ class CreateAdvertisementSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data: dict) -> Meta.model:
-        uploaded_images = validated_data.pop('images')
+        uploaded_images = validated_data.pop('images', None)
+
         advertisement = Advertisement.objects.create(**validated_data)
-        for image in uploaded_images:
-            Image.objects.create(
-                advertisement=advertisement,
-                image=image,
-            )
+
+        if uploaded_images:
+            for image in uploaded_images:
+                Image.objects.create(
+                    advertisement=advertisement,
+                    image=image,
+                )
 
         return advertisement
 
@@ -88,6 +93,8 @@ class AdvertisementSerializer(serializers.ModelSerializer):
     images = ImageSerializer(many=True)
     category = AdvertisementCategorySerializer(read_only=True)
 
+    advertisement_type = MultipleChoiceField(choices=Advertisement.TYPE_LIST)
+
     class Meta:
         model = Advertisement
         fields = [
@@ -99,6 +106,7 @@ class AdvertisementSerializer(serializers.ModelSerializer):
             'urgency_type',
             'author',
             'category',
+            'is_open',
         ]
 
 
@@ -107,23 +115,7 @@ class AdvertisementListSerializer(serializers.ModelSerializer):
     images = ImageSerializer(many=True)
     category = AdvertisementCategorySerializer()
 
-    class Meta:
-        model = Advertisement
-        fields = [
-            'id',
-            'title',
-            'description',
-            'advertisement_type',
-            'images',
-            'urgency_type',
-            'author',
-            'category',
-        ]
-
-
-class AdvertisementByUserSerializer(serializers.ModelSerializer):
-    category = AdvertisementCategorySerializer()
-    images = ImageSerializer(many=True)
+    advertisement_type = MultipleChoiceField(choices=Advertisement.TYPE_LIST)
 
     class Meta:
         model = Advertisement
@@ -136,4 +128,5 @@ class AdvertisementByUserSerializer(serializers.ModelSerializer):
             'urgency_type',
             'author',
             'category',
+            'is_open',
         ]
